@@ -10,12 +10,12 @@ static int getStoreIndex(int nodeIndex)
 
 static int addNewNode(PNode pInsertNode, int nodeIndex,int nodeNum)
 {
-    if (pInsertNode->index + pInsertNode->length > BUF_LENGTH)
+    if (pInsertNode->index + pInsertNode->size > BUF_LENGTH)
     { //数据空间不够
         return FAIL;
     }
     
-    Node node = { 0,0 };
+    Node node = { 0 };
     for (int i = nodeNum; i > nodeIndex; --i)
     {
         //读数据
@@ -53,6 +53,38 @@ static int checkIndex(int nodeIndex)
     return SUCCESS;
 }
 
+// 根据数据更新节点
+static int updateNodeByData(PNode pNode, PType pData)
+{
+    pNode->memberLen[0] = strlen(pData->name) + 1;
+    pNode->memberLen[1] = strlen(pData->phone) + 1;
+    pNode->memberLen[2] = sizeof(pData->shortPhone);
+    
+    return SUCCESS;
+}
+
+// 根据节点写数据
+static int writeBufByNode(PNode pNode, PType pData)
+{
+    seek(BUF, pNode->index, SEEK_SET);
+    write(BUF, sizeof(char), pNode->memberLen[0], pData->name);
+    write(BUF, sizeof(char), pNode->memberLen[1], pData->phone);
+    write(BUF, sizeof(char), pNode->memberLen[2], &pData->shortPhone);
+
+    return SUCCESS;
+}
+
+// 根据节点读数据
+static int readBufByNode(PNode pNode, PType pData)
+{
+    seek(BUF, pNode->index, SEEK_SET);
+    read(BUF, sizeof(char), pNode->memberLen[0], pData->name);
+    read(BUF, sizeof(char), pNode->memberLen[1], pData->phone);
+    read(BUF, sizeof(char), pNode->memberLen[2], &pData->shortPhone);
+    
+    return SUCCESS;
+}
+
 /*************************interface*****************************/
 
 // 初始化
@@ -67,8 +99,18 @@ int crudExit()
     return storeExit();
 }
 
+// 计算数据所需占用的空间
+int calcDataSize(PType pData)
+{
+    int size = 0;
+    size += strlen(pData->name) + 1; //加上\0
+    size += strlen(pData->phone) + 1; //加上\0
+    size += sizeof(pData->shortPhone);
+    return size;
+}
+
 // 获取一块存储位置
-int getStorageInfo(int dataLength)
+int getStorageInfo(int dataSize)
 {
 
     int nodeNum = 0;
@@ -80,7 +122,7 @@ int getStorageInfo(int dataLength)
     
     seek(NODE, 0, SEEK_SET);
     read(NODE,sizeof(int),1,&nodeNum); //读取节点长度
-    Node node = {0,0};
+    Node node = { 0 };
     int dataIndex = 0;
     int findIndex = 0;
     
@@ -88,15 +130,15 @@ int getStorageInfo(int dataLength)
     {
         read(NODE,sizeof(Node),1,&node);
         //寻找合适条件
-        if (node.index - dataIndex >= dataLength)
+        if (node.index - dataIndex >= dataSize)
         {
             break;
         }
-        dataIndex = node.index + node.length;
+        dataIndex = node.index + node.size;
     }
     
     node.index = dataIndex;
-    node.length = dataLength;
+    node.size = dataSize;
 
     //开辟新节点
     if (!addNewNode(&node,findIndex, nodeNum))
@@ -115,7 +157,7 @@ int addInputData(int nodeIndex, PType pData)
     int retMsg = SUCCESS;
 
     //打开节点文件
-    if (!open(NODE, READ_MODE))
+    if (!open(NODE, READ_WRITE_MODE))
     {
         retMsg = FAIL;
         goto addEnd;
@@ -128,9 +170,12 @@ int addInputData(int nodeIndex, PType pData)
     }
 
     //读取节点数据
-    Node node = { 0,0 };
+    Node node = { 0 };
     seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
     read(NODE, sizeof(Node), 1, &node);
+
+    //更新数据节点
+    updateNodeByData(&node, pData);
 
     //打开数据文件
     if (!open(BUF, READ_WRITE_MODE))
@@ -140,8 +185,11 @@ int addInputData(int nodeIndex, PType pData)
     }
     
     //写入数据
-    seek(BUF, node.index * sizeof(Type), SEEK_SET);
-    write(BUF, sizeof(Type), node.length, pData);
+    writeBufByNode(&node, pData);
+    
+    //写入节点
+    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    write(NODE, sizeof(Node), 1, &node);
 
 addEnd:
     close(NODE);
@@ -172,7 +220,7 @@ int deleteDataBuf(int dataId)
     }
 
     //删除节点数据
-    Node node = { 0,0 };
+    Node node = { 0 };
     for (int i = nodeIndex + 1; i < nodeNum; ++i)
     {
         //读数据
@@ -193,7 +241,7 @@ int deleteDataBuf(int dataId)
 }
 
 //更新数据
-int updateDataBuf(int dataId, PType pContent, int conLen)
+int updateDataBuf(int dataId, PType pContent, int conSize)
 {
     int retMsg = SUCCESS;
     int nodeIndex = dataId - 1;
@@ -212,18 +260,19 @@ int updateDataBuf(int dataId, PType pContent, int conLen)
     }
 
     //读取节点数据
-    Node node = { 0,0 };
+    Node node = { 0 };
     seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
     read(NODE, sizeof(Node), 1, &node);
 
-    if (conLen > node.length) //长度太长
+    if (conSize > node.size) //长度太长
     {
         retMsg = FAIL;
         goto updateEnd;
     }
 
     //更新节点数据
-    node.length = conLen;
+    node.size = conSize;
+    updateNodeByData(&node, pContent);
     seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
     write(NODE, sizeof(Node), 1, &node);
 
@@ -235,8 +284,7 @@ int updateDataBuf(int dataId, PType pContent, int conLen)
     }
 
     //更新源数据
-    seek(BUF, node.index * sizeof(Type), SEEK_SET);
-    write(BUF, sizeof(Type), node.length, pContent);
+    writeBufByNode(&node,pContent);
 
 updateEnd:
     close(NODE);
@@ -266,7 +314,7 @@ int findDataById(int dataId, PType pData)
     }
 
     //读取节点数据
-    Node node = { 0,0 };
+    Node node = { 0 };
     seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
     read(NODE, sizeof(Node), 1, &node);
 
@@ -278,8 +326,7 @@ int findDataById(int dataId, PType pData)
     }
 
     //读数据
-    seek(BUF, node.index * sizeof(Type), SEEK_SET);
-    read(BUF, sizeof(Type), node.length, pData);
+    readBufByNode(&node,pData);
 
 findIdEnd:
     close(NODE);

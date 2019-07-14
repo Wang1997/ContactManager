@@ -2,10 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-#include <string.h>
 #include "dataCrud.h"
-
-
 
 //该程序初始化
 int manageInit();
@@ -19,14 +16,8 @@ int inputInt();
 // 输入字符
 int inputChar();
 
-// 输入字符串 返回length
-int inputFirstStr(char *data, int maxLen);
-
-// 输入字符串 返回size
-int inputSecondStr(char *data, int maxLen);
-
-//获取数据长度
-int getDataLength(char *data);
+// 输入字符串
+void inputStr(char *data, int maxLen);
 
 // 菜单界面
 void menuView();

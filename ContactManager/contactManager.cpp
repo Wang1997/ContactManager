@@ -50,7 +50,7 @@ int inputChar()
 }
 
 // 输入字符串 返回length
-int inputFirstStr(char *data, int maxLen)
+void inputStr(char *data, int maxLen)
 {
     rewind(stdin);
     fgets(data, maxLen, stdin); //输入数据
@@ -58,40 +58,10 @@ int inputFirstStr(char *data, int maxLen)
     int length = strlen(data);
     if (data[length - 1] == '\n')
     {
-        --length;
-        data[length] = 0;
+        data[length - 1] = 0;
     }
     
-    return length;
-}
-
-// 输入字符串 返回size
-int inputSecondStr(char *data, int maxLen)
-{
-    int firLength = strlen(data) + 1;
-
-    rewind(stdin);
-    fgets(data + firLength, maxLen, stdin); //输入数据
-
-    int secLength = firLength + strlen(data + firLength); //加上第一部分
-    if (data[secLength - 1] == '\n')
-    {
-        data[secLength - 1] = 0;
-    }
-    else
-    {
-        secLength++; //算上 '\0'
-    }
-
-    return secLength;
-}
-
-//获取数据长度
-int getDataLength(char *data)
-{
-    int firLength = strlen(data) + 1;
-    int secLength = firLength + strlen(data + firLength); //加上第一部分
-    return secLength + 1;
+    return;
 }
 
 //菜单界面
@@ -168,23 +138,25 @@ void menuView()
 // 增加数据输入
 void addInput()
 {
-    int inputNum = 0;
-    Type data[NAME_LENGTH + PHONE_LENGTH + 2] = { 0 };
+    Type data = { 0 };
 
     printf("请输入需要添加的姓名：");
-    inputFirstStr(data, NAME_LENGTH + 1);
-    printf("请输入对应的联系方式：");
-    int totalLength = inputSecondStr(data, PHONE_LENGTH + 1);
+    inputStr(data.name, NAME_LENGTH + 1);
+    printf("请输入对应的长号：");
+    inputStr(data.phone, PHONE_LENGTH + 1);
+    printf("请输入对应的短号：");
+    data.shortPhone = inputInt();
 
     //获取存储信息
-    int nodeIndex = getStorageInfo(totalLength);
+    int dataSize = calcDataSize(&data);
+    int nodeIndex = getStorageInfo(dataSize);
     if (nodeIndex == INDEX_ERR)
     {
         printf("对不起,剩余空间不够\r\n");
         return;
     }
 
-    if (addInputData(nodeIndex, data))
+    if (addInputData(nodeIndex, &data))
     {
         printf("添加成功\r\n");
     }
@@ -211,15 +183,15 @@ void deleteInput()
     printf("请输入要删除的Id:");
     int dataId = inputInt();
 
-    Type data[NAME_LENGTH + PHONE_LENGTH + 2] = { 0 };
+    Type data = { 0 };
     //获取存储信息
-    if (!findDataById(dataId, data))
+    if (!findDataById(dataId, &data))
     {
         printf("对不起,查找不到该数据\r\n");
         return;
     }
     printf("需删除数据如下: \r\n");
-    printData(dataId, data);
+    printData(dataId, &data);
 
     printf("请确认是否删除(y or n)：");
     char confirm = inputChar();
@@ -247,21 +219,25 @@ void updateInput()
     int dataId = inputInt();
 
     //获取存储信息
-    Type data[NAME_LENGTH + PHONE_LENGTH + 2] = { 0 };
-    if (!findDataById(dataId, data))
+    Type data = { 0 };
+    if (!findDataById(dataId, &data))
     {
         printf("对不起,查找不到该数据\r\n");
         return;
     }
     printf("需更新数据如下: \r\n");
-    printData(dataId, data);
+    printData(dataId, &data);
     
-    int oldLength = getDataLength(data); //旧数据长度
+    int oldLength = calcDataSize(&data); //旧数据长度
 
     printf("请输入需要更新的姓名：");
-    inputFirstStr(data, NAME_LENGTH + 1);
-    printf("请输入更新的联系方式：");
-    int newLength = inputSecondStr(data, PHONE_LENGTH + 1);
+    inputStr(data.name, NAME_LENGTH + 1);
+    printf("请输入更新的长号：");
+    inputStr(data.phone, PHONE_LENGTH + 1);
+    printf("请输入更新的短号：");
+    data.shortPhone = inputInt();
+
+    int newLength = calcDataSize(&data); //新数据长度
 
     if (newLength > oldLength) //需获取新的存储空间
     {
@@ -274,7 +250,7 @@ void updateInput()
         }
         
         //添加新数据
-        if (!addInputData(nodeIndex, data))
+        if (!addInputData(nodeIndex, &data))
         {
             printf("对不起,更新添加数据失败\r\n");
             return;
@@ -289,7 +265,7 @@ void updateInput()
     }
     else //直接更新
     {
-        if (!updateDataBuf(dataId, data, newLength))
+        if (!updateDataBuf(dataId, &data, newLength))
         {
             printf("更新数据失败\r\n");
         }
@@ -351,6 +327,7 @@ void showAllData()
         if (findDataById(dataId, data))
         {
             printData(dataId, data);
+            printf("\r\n");
             flag = 1;
         }
     }
@@ -374,23 +351,24 @@ void findByIdInput()
     int dataId = inputInt();
 
     //获取存储信息
-    Type data[NAME_LENGTH + PHONE_LENGTH + 2] = { 0 };
-    if (!findDataById(dataId, data))
+    Type data = { 0 };
+    if (!findDataById(dataId, &data))
     {
         printf("对不起,查找不到该数据\r\n");
         return;
     }
     printf("查找数据如下: \r\n");
-    printData(dataId, data);
+    printData(dataId, &data);
 }
 
 
 //打印某一条数据
 void printData(int dataId, PType pData)
 {
-    printf("[%d]\t", dataId);
-    printf("%s\t",pData);
-    printf("%s\r\n", pData + strlen(pData) + 1);
+    printf("id: \r\n", dataId);
+    printf("姓名: %s\r\n",pData->name);
+    printf("长号: %s\r\n", pData->phone);
+    printf("短号: %d\r\n", pData->shortPhone);
 }
 
 

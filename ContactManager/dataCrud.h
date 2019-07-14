@@ -1,4 +1,5 @@
 #pragma once
+#include <string.h>
 #include "store.h"
 
 //数据最大长度
@@ -8,26 +9,25 @@
 struct telBook
 {
     char name[NAME_LENGTH+1]; //名字
-    char phone[PHONE_LENGTH+1]; //电话
-    
+    char phone[PHONE_LENGTH+1]; //长号
+    int shortPhone; //短号
 };
 
 //存储数据类型
-typedef char Type, *PType;
+typedef struct telBook Type, *PType;
 
 //数据节点
 typedef struct node
 {
     int index; //对应数据源索引
-    int length;//所占空间长度
+    int size;//所占总空间
+    int memberLen[3]; //所对应成员占用长度
 }Node, *PNode;
 
 // 数据源最大存储长度
 #define BUF_LENGTH 0x5000
 
 #define INDEX_ERR -1
-
-
 
 
 /*************************interface*****************************/
@@ -38,8 +38,11 @@ int crudInit();
 // 退出程序
 int crudExit();
 
+// 计算数据所需占用的空间
+int calcDataSize(PType pData);
+
 // 获取一块存储位置
-int getStorageInfo(int dataLength);
+int getStorageInfo(int dataSize);
 
 // 添加数据
 int addInputData(int nodeIndex, PType pData);
@@ -48,7 +51,7 @@ int addInputData(int nodeIndex, PType pData);
 int deleteDataBuf(int dataId);
 
 //更新数据
-int updateDataBuf(int dataId, PType pContent, int conLen);
+int updateDataBuf(int dataId, PType pContent, int conSize);
 
 //根据Id查找内容
 int findDataById(int dataId, PType pData);

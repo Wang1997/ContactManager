@@ -192,6 +192,59 @@ int deleteDataBuf(int dataId)
     return SUCCESS;
 }
 
+//更新数据
+int updateDataBuf(int dataId, PType pContent, int conLen)
+{
+    int retMsg = SUCCESS;
+    int nodeIndex = dataId - 1;
+
+    //打开节点文件
+    if (!open(NODE, READ_WRITE_MODE))
+    {
+        retMsg = FAIL;
+        goto updateEnd;
+    }
+
+    if (!checkIndex(nodeIndex)) //检查索引
+    {
+        retMsg = FAIL;
+        goto updateEnd;
+    }
+
+    //读取节点数据
+    Node node = { 0,0 };
+    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    read(NODE, sizeof(Node), 1, &node);
+
+    if (conLen > node.length) //长度太长
+    {
+        retMsg = FAIL;
+        goto updateEnd;
+    }
+
+    //更新节点数据
+    node.length = conLen;
+    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    write(NODE, sizeof(Node), 1, &node);
+
+    //打开数据文件
+    if (!open(BUF, READ_WRITE_MODE))
+    {
+        retMsg = FAIL;
+        goto updateEnd;
+    }
+
+    //更新源数据
+    seek(BUF, node.index * sizeof(Type), SEEK_SET);
+    write(BUF, sizeof(Type), node.length, pContent);
+
+updateEnd:
+    close(NODE);
+    close(BUF);
+
+    return retMsg;
+}
+
 
 //根据Id查找内容
 int findDataById(int dataId, PType pData)
@@ -233,4 +286,21 @@ findIdEnd:
     close(BUF);
 
     return retMsg;
+}
+
+//获取数据总共个数
+int getDataTotalNum()
+{
+    //打开节点文件
+    if (!open(NODE, READ_MODE))
+    {
+        return 0;
+    }
+
+    int nodeNum = 0;
+    seek(NODE, 0, SEEK_SET);
+    read(NODE, sizeof(int), 1, &nodeNum); //读取节点长度
+
+    close(NODE);
+    return nodeNum;
 }

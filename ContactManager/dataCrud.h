@@ -1,6 +1,17 @@
 #pragma once
 #include "store.h"
 
+//数据最大长度
+#define NAME_LENGTH 15
+#define PHONE_LENGTH 11
+
+struct telBook
+{
+    char name[NAME_LENGTH+1]; //名字
+    char phone[PHONE_LENGTH+1]; //电话
+    
+};
+
 //存储数据类型
 typedef char Type, *PType;
 
@@ -15,6 +26,8 @@ typedef struct node
 #define BUF_LENGTH 0x5000
 
 #define INDEX_ERR -1
+
+
 
 
 /*************************interface*****************************/
@@ -34,5 +47,11 @@ int addInputData(int nodeIndex, PType pData);
 //删除数据
 int deleteDataBuf(int dataId);
 
+//更新数据
+int updateDataBuf(int dataId, PType pContent, int conLen);
+
 //根据Id查找内容
 int findDataById(int dataId, PType pData);
+
+//获取数据总共个数
+int getDataTotalNum();

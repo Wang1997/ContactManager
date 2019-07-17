@@ -19,17 +19,17 @@ int storeInit();
 int storeExit();
 
 //打开
-int open(SRC src, const char *mode);
+int storeOpen(SRC src, const char *mode);
 
 //关闭
-int close(SRC src);
+int storeClose(SRC src);
 
 // 读取数据 返回实际读取值
-int read(SRC src,int size,int count,void *buffer);
+int storeRead(SRC src,int size,void *buffer);
 
 // 写入数据 返回实际写入值
-int write(SRC src, int size, int count, const void *buffer);
+int storeWrite(SRC src, int size, const void *buffer);
 
 //设置读写位置
-int seek(SRC src,long offset,int origin);
+int storeSeek(SRC src,long offset,int origin);
 

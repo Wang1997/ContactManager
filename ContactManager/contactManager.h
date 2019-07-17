@@ -40,11 +40,23 @@ void queryView();
 // 展示所有数据
 void showAllData();
 
-//内容查找 输入
-void findByContentInput();
+//姓名查找 输入
+void findByNameInput();
+
+//长号查找 输入
+void findByPhoneInput();
 
 //Id查找 输入
 void findByIdInput();
+
+//统计界面
+void statisticalView();
+
+//存储信息界面
+void storeInfoView();
+
+//展示存储资源图
+void showStorageResource();
 
 //打印某一条数据
 void printData(int dataId,PType pData);

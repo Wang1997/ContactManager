@@ -105,12 +105,12 @@ void menuView()
             }
             case 5:
             {
-                //statisticalWordsView();
+                statisticalView();
                 break;
             }
             case 6:
             {
-                //storeInfoView();
+                storeInfoView();
                 break;
             }
             case 7:
@@ -180,7 +180,7 @@ int checkConfirmInput(char confirm)
 //删除输入
 void deleteInput()
 {
-    printf("请输入要删除的Id:");
+    printf("请输入要删除的编号:");
     int dataId = inputInt();
 
     Type data = { 0 };
@@ -215,7 +215,7 @@ void deleteInput()
 //修改输入
 void updateInput()
 {
-    printf("请输入要更新的Id:");
+    printf("请输入要更新的编号:");
     int dataId = inputInt();
 
     //获取存储信息
@@ -283,8 +283,9 @@ void queryView()
         system("cls");
         printf("  查询功能  \r\n");
         printf("1.查询所有数据\r\n");
-        printf("2.根据内容查找\r\n");
-        printf("3.根据Id查找\r\n");
+        printf("2.根据姓名查找\r\n");
+        printf("3.根据长号查找\r\n");
+        printf("4.根据编号查找\r\n");
         printf("请选择: ");
         int choose = inputInt();
         switch (choose)
@@ -296,10 +297,15 @@ void queryView()
         }
         case 2:
         {
-            findByContentInput();
+            findByNameInput();
             return;
         }
         case 3:
+        {
+            findByPhoneInput();
+            return;
+        }
+        case 4:
         {
             findByIdInput();
             return;
@@ -318,15 +324,15 @@ void queryView()
 void showAllData()
 {
     int totalNum = getDataTotalNum();
-    Type data[NAME_LENGTH + PHONE_LENGTH + 2] = { 0 };
+    Type data = { 0 };
     int flag = 0;
 
     for (int i = 0; i < totalNum; ++i)
     {
         int dataId = i +1;
-        if (findDataById(dataId, data))
+        if (findDataById(dataId, &data))
         {
-            printData(dataId, data);
+            printData(dataId, &data);
             printf("\r\n");
             flag = 1;
         }
@@ -338,16 +344,68 @@ void showAllData()
     }
 }
 
-//内容查找 输入
-void findByContentInput()
+//名字查找 输入
+void findByNameInput()
 {
+    char name[NAME_LENGTH + 1] = {0};
+    printf("请输入需要查找的姓名(模糊)：");
+    inputStr(name, NAME_LENGTH + 1);
 
+    int totalNum = getDataTotalNum();
+    int flag = 0;
+
+    Type data = { 0 };
+
+    for (int i = 0; i < totalNum; ++i)
+    {
+        int dataId = i + 1;
+        if (checkDataByContent(dataId, name, &data, FIND_NAME))
+        {
+            printData(dataId, &data);
+            printf("\r\n");
+            flag = 1;
+        }
+    }
+
+    if (!flag)
+    {
+        printf("暂无数据\r\n");
+    }
+}
+
+//长号查找 输入
+void findByPhoneInput()
+{
+    char phone[PHONE_LENGTH + 1] = { 0 };
+    printf("请输入需要查找的长号(模糊)：");
+    inputStr(phone, PHONE_LENGTH + 1);
+
+    int totalNum = getDataTotalNum();
+    int flag = 0;
+
+    Type data = { 0 };
+
+    for (int i = 0; i < totalNum; ++i)
+    {
+        int dataId = i + 1;
+        if (checkDataByContent(dataId, phone, &data, FIND_PHONE))
+        {
+            printData(dataId, &data);
+            printf("\r\n");
+            flag = 1;
+        }
+    }
+
+    if (!flag)
+    {
+        printf("暂无数据\r\n");
+    }
 }
 
 //Id查找 输入
 void findByIdInput()
 {
-    printf("请输入要查找的Id:");
+    printf("请输入要查找的编号:");
     int dataId = inputInt();
 
     //获取存储信息
@@ -361,11 +419,143 @@ void findByIdInput()
     printData(dataId, &data);
 }
 
+//统计界面
+void statisticalView()
+{
+    
+    int totalNum = getDataTotalNum(); //获取数量
+
+    if (totalNum <= 0)
+    {
+        printf("对不起, 暂无数据可统计\r\n");
+        return;
+    }
+    
+    //存放姓名 数组指针 char [NAME_LENGTH + 1]
+    char (*names)[NAME_LENGTH + 1] = NULL;
+    names = (char(*)[NAME_LENGTH + 1])malloc(totalNum * (NAME_LENGTH+1));
+    //存放出现次数
+    int *counts = NULL;
+    counts = (int*)malloc(totalNum * sizeof(int));
+    if (names == NULL || counts == NULL)
+    {
+        printf("对不起,数据统计分配内存有误\r\n");
+        return;
+    }
+    
+    memset(names,0, totalNum * (NAME_LENGTH + 1));
+    memset(counts, 0, totalNum * sizeof(int));
+
+    int statisticalNum = statisticalData(names, counts);
+    if (statisticalNum <= 0)
+    {
+        printf("对不起,数据统计失败\r\n");
+        goto FREE_END;
+    }
+
+    system("cls");
+    printf("统计数据如下: \r\n");
+    printf("共有%d条联系人信息\r\n", statisticalNum);
+    for (int i = 0; i < statisticalNum; ++i)
+    {
+        printf("姓名: %s 出现了%d次,比例为%.2lf%%\r\n", names[i],counts[i],
+            counts[i] * 100.0 / totalNum);
+    }
+
+FREE_END:
+    //释放内存
+    if (names != NULL)
+    {
+        free(names);
+        names = NULL;
+    }
+    if (counts != NULL)
+    {
+        free(counts);
+        counts = NULL;
+    }
+    return;
+}
+
+//存储信息界面
+void storeInfoView()
+{
+    while (1)
+    {
+        system("cls");
+        printf("  存储信息  \r\n");
+        printf("1.存储资源分布情况\r\n");
+        printf("2.碎片整理\r\n");
+        printf("请选择: ");
+        int choose;
+        scanf("%d", &choose);
+        switch (choose)
+        {
+            case 1:
+            {
+                showStorageResource();
+                return;
+            }
+            case 2:
+            {
+                if (defragment())
+                {
+                    printf("碎片整理成功\r\n");
+                }
+                else
+                {
+                    printf("碎片整理失败\r\n");
+                }
+                return;
+            }
+            default:
+            {
+                printf("对不起，输入有误，请重新选择\r\n");
+                system("pause");
+                break;
+            }
+        }
+    }
+}
+
+//展示存储资源图
+void showStorageResource()
+{
+    int totalNum = getDataTotalNum(); //获取数量
+    int totalSize = 0;
+
+    if (totalNum > 0)
+    {
+        IndexInfo indexInfo = {0};
+        int lastEndIndex = 0;
+        for (int i = 0; i < totalNum; ++i)
+        {
+            getIndexInfo(i, &indexInfo);
+            for (int j = indexInfo.index - 1; j >= lastEndIndex; --j)
+            {
+                printf("□"); //空闲
+                if (++totalSize % 10 == 0)
+                    printf("\r\n");
+            }
+            for (int j = 0; j < indexInfo.size; ++j)
+            {
+                printf("■"); //占有
+                if (++totalSize % 10 == 0)
+                    printf("\r\n");
+            }
+            lastEndIndex = indexInfo.index + indexInfo.size;
+        }
+    }
+
+    printf("\r\n");
+    printf("总共空间大小:0x%x,剩余0x%x未分配\r\n", BUF_LENGTH, BUF_LENGTH - totalSize);
+}
+
 
 //打印某一条数据
 void printData(int dataId, PType pData)
 {
-    printf("id: \r\n", dataId);
+    printf("编号: %d\r\n", dataId);
     printf("姓名: %s\r\n",pData->name);
     printf("长号: %s\r\n", pData->phone);
     printf("短号: %d\r\n", pData->shortPhone);

@@ -9,26 +9,26 @@ static char *filePath[] = {"buf.bin","node.bin"};
 int storeInit()
 {
     //判断buf文件
-    int ret = open(BUF, READ_MODE);
+    int ret = storeOpen(BUF, READ_MODE);
     if (ret == FAIL)
     {
-        if (!open(BUF, WRITE_MODE))
+        if (!storeOpen(BUF, WRITE_MODE))
         {
             return FAIL;
         }
     }
-    close(BUF);
+    storeClose(BUF);
     //判断node文件
-    ret = open(NODE, READ_MODE);
+    ret = storeOpen(NODE, READ_MODE);
     if (ret == FAIL)
     {
-        if (!open(NODE, WRITE_MODE))
+        if (!storeOpen(NODE, WRITE_MODE))
         {
             return FAIL;
         }
-        write(NODE,sizeof(int),1, &ret);
+        storeWrite(NODE, sizeof(int), &ret);
     }
-    close(NODE);
+    storeClose(NODE);
     return SUCCESS;
 }
 
@@ -41,13 +41,14 @@ int storeExit()
         if (stream[i] != NULL)
         {
             fclose(stream[i]);
+            stream[i] = NULL;
         }
     }
     return SUCCESS;
 }
 
 //打开
-int open(SRC src, const char *mode)
+int storeOpen(SRC src, const char *mode)
 {
     if (stream[src] != NULL)
     {
@@ -65,7 +66,7 @@ int open(SRC src, const char *mode)
 }
 
 //关闭
-int close(SRC src)
+int storeClose(SRC src)
 {
     if (stream[src] == NULL)
     {
@@ -82,29 +83,29 @@ int close(SRC src)
 }
 
 // 读取数据 返回实际读取值
-int read(SRC src, int size, int count, void *buffer)
+int storeRead(SRC src, int size, void *buffer)
 {
     if (stream[src] == NULL)
     {
         return 0; //关闭
     }
 
-    return fread(buffer,size,count, stream[src]);
+    return fread(buffer, size , 1, stream[src]);
 }
 
 // 写入数据 返回实际写入值
-int write(SRC src, int size, int count, const void *buffer)
+int storeWrite(SRC src, int size, const void *buffer)
 {
     if (stream[src] == NULL)
     {
         return 0; //关闭
     }
 
-    return fwrite(buffer,size,count, stream[src]);
+    return fwrite(buffer, size, 1, stream[src]);
 }
 
 //设置读写位置
-int seek(SRC src, long offset, int origin)
+int storeSeek(SRC src, long offset, int origin)
 {
     if (stream[src] == NULL)
     {

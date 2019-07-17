@@ -1,5 +1,13 @@
 #include "dataCrud.h"
 
+//数据节点 对内结构体
+typedef struct node
+{
+    int index; //对应数据源索引
+    int size;//所占总空间
+    int memberLen[3]; //所对应成员占用长度
+}Node, *PNode;
+
 /*************************static function*****************************/
 
 // 获得节点存储对应位置
@@ -19,21 +27,21 @@ static int addNewNode(PNode pInsertNode, int nodeIndex,int nodeNum)
     for (int i = nodeNum; i > nodeIndex; --i)
     {
         //读数据
-        seek(NODE, getStoreIndex(i), SEEK_SET);
-        read(NODE, sizeof(Node), 1, &node);
+        storeSeek(NODE, getStoreIndex(i-1), SEEK_SET);
+        storeRead(NODE, sizeof(Node), &node);
         //拷贝数据
-        seek(NODE, getStoreIndex(i+1), SEEK_SET);
-        write(NODE, sizeof(Node), 1, &node);
+        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeWrite(NODE, sizeof(Node), &node);
     }
 
     //插入节点
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    write(NODE, sizeof(Node), 1, pInsertNode);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeWrite(NODE, sizeof(Node), pInsertNode);
 
     //更新节点数
     nodeNum++;
-    seek(NODE, 0, SEEK_SET);
-    write(NODE, sizeof(int), 1, &nodeNum);
+    storeSeek(NODE, 0, SEEK_SET);
+    storeWrite(NODE, sizeof(int), &nodeNum);
 
     return SUCCESS;
 }
@@ -42,8 +50,8 @@ static int addNewNode(PNode pInsertNode, int nodeIndex,int nodeNum)
 static int checkIndex(int nodeIndex)
 {
     int nodeNum = 0;
-    seek(NODE, 0, SEEK_SET);
-    read(NODE, sizeof(int), 1, &nodeNum); //读取节点长度
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     if (nodeIndex < 0 || nodeIndex >= nodeNum)
     {
@@ -66,10 +74,10 @@ static int updateNodeByData(PNode pNode, PType pData)
 // 根据节点写数据
 static int writeBufByNode(PNode pNode, PType pData)
 {
-    seek(BUF, pNode->index, SEEK_SET);
-    write(BUF, sizeof(char), pNode->memberLen[0], pData->name);
-    write(BUF, sizeof(char), pNode->memberLen[1], pData->phone);
-    write(BUF, sizeof(char), pNode->memberLen[2], &pData->shortPhone);
+    storeSeek(BUF, pNode->index, SEEK_SET);
+    storeWrite(BUF, pNode->memberLen[0], pData->name);
+    storeWrite(BUF, pNode->memberLen[1], pData->phone);
+    storeWrite(BUF, pNode->memberLen[2], &pData->shortPhone);
 
     return SUCCESS;
 }
@@ -77,12 +85,69 @@ static int writeBufByNode(PNode pNode, PType pData)
 // 根据节点读数据
 static int readBufByNode(PNode pNode, PType pData)
 {
-    seek(BUF, pNode->index, SEEK_SET);
-    read(BUF, sizeof(char), pNode->memberLen[0], pData->name);
-    read(BUF, sizeof(char), pNode->memberLen[1], pData->phone);
-    read(BUF, sizeof(char), pNode->memberLen[2], &pData->shortPhone);
+    storeSeek(BUF, pNode->index, SEEK_SET);
+    storeRead(BUF, pNode->memberLen[0], pData->name);
+    storeRead(BUF, pNode->memberLen[1], pData->phone);
+    storeRead(BUF, pNode->memberLen[2], &pData->shortPhone);
     
     return SUCCESS;
+}
+
+//数据匹配
+static int dataCompare(const char* src, const char* content)
+{
+    int srcLen = strlen(src);
+    int conLen = strlen(content);
+
+    if (conLen > srcLen)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < srcLen; ++i)
+    {
+        int index = i; //重复进行匹配
+        int findFlag = 1;
+        for (int j = 0; j < conLen; ++j)
+        { 
+            if (src[index] != content[j])
+            {
+                findFlag = 0;
+                break;
+            }
+            index++;
+        }
+        if (findFlag)
+        { //匹配成功
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// 统计姓名
+void statistical(char(*names)[NAME_LENGTH + 1], int *couns ,
+                                            int *statisticalNum , char *name)
+{
+    int findFlag = 0;
+    for (int i = 0; i < *statisticalNum; ++i)
+    {
+        if (strcmp(names[i], name) == 0) //匹配成功
+        {
+            couns[i]++; //对应的数量++
+            findFlag = 1;
+            break;
+        }
+    }
+
+    if (!findFlag) //未找到
+    {
+        //将此姓名添加到末尾
+        strcpy(names[*statisticalNum], name);
+        couns[*statisticalNum] = 1;
+        (*statisticalNum)++; //计数++
+    }
 }
 
 /*************************interface*****************************/
@@ -115,20 +180,20 @@ int getStorageInfo(int dataSize)
 
     int nodeNum = 0;
 
-    if (!open(NODE, READ_WRITE_MODE))
+    if (!storeOpen(NODE, READ_WRITE_MODE))
     {
         return INDEX_ERR; //文件打开失败
     }
     
-    seek(NODE, 0, SEEK_SET);
-    read(NODE,sizeof(int),1,&nodeNum); //读取节点长度
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
     Node node = { 0 };
     int dataIndex = 0;
     int findIndex = 0;
     
     for(; findIndex < nodeNum;++findIndex)
     {
-        read(NODE,sizeof(Node),1,&node);
+        storeRead(NODE, sizeof(Node), &node);
         //寻找合适条件
         if (node.index - dataIndex >= dataSize)
         {
@@ -146,7 +211,7 @@ int getStorageInfo(int dataSize)
         findIndex = INDEX_ERR; //错误
     }
 
-    close(NODE); //关闭文件
+    storeClose(NODE); //关闭文件
     
     return findIndex;
 }
@@ -154,33 +219,30 @@ int getStorageInfo(int dataSize)
 // 添加数据
 int addInputData(int nodeIndex, PType pData)
 {
-    int retMsg = SUCCESS;
+    int retMsg = FAIL;
 
     //打开节点文件
-    if (!open(NODE, READ_WRITE_MODE))
+    if (!storeOpen(NODE, READ_WRITE_MODE))
     {
-        retMsg = FAIL;
         goto addEnd;
     }
 
     if (!checkIndex(nodeIndex)) //检查索引
     {
-        retMsg = FAIL;
         goto addEnd;
     }
 
     //读取节点数据
     Node node = { 0 };
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    read(NODE, sizeof(Node), 1, &node);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeRead(NODE, sizeof(Node), &node);
 
     //更新数据节点
     updateNodeByData(&node, pData);
 
     //打开数据文件
-    if (!open(BUF, READ_WRITE_MODE))
+    if (!storeOpen(BUF, READ_WRITE_MODE))
     {
-        retMsg = FAIL;
         goto addEnd;
     }
     
@@ -188,12 +250,14 @@ int addInputData(int nodeIndex, PType pData)
     writeBufByNode(&node, pData);
     
     //写入节点
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    write(NODE, sizeof(Node), 1, &node);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeWrite(NODE, sizeof(Node), &node);
+    
+    retMsg = SUCCESS;
 
 addEnd:
-    close(NODE);
-    close(BUF);
+    storeClose(BUF);
+    storeClose(NODE);
     
     return retMsg;
 }
@@ -204,18 +268,18 @@ int deleteDataBuf(int dataId)
     int nodeIndex = dataId - 1;
 
     //打开节点文件
-    if (!open(NODE, READ_WRITE_MODE))
+    if (!storeOpen(NODE, READ_WRITE_MODE))
     {
         return FAIL;
     }
 
     int nodeNum = 0;
-    seek(NODE, 0, SEEK_SET);
-    read(NODE, sizeof(int), 1, &nodeNum); //读取节点长度
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     if (nodeIndex < 0 || nodeIndex >= nodeNum) //检查索引
     {
-        close(NODE);
+        storeClose(NODE);
         return FAIL;
     }
 
@@ -224,71 +288,69 @@ int deleteDataBuf(int dataId)
     for (int i = nodeIndex + 1; i < nodeNum; ++i)
     {
         //读数据
-        seek(NODE, getStoreIndex(i), SEEK_SET);
-        read(NODE, sizeof(Node), 1, &node);
+        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeRead(NODE, sizeof(Node), &node);
         //拷贝数据
-        seek(NODE, getStoreIndex(i - 1), SEEK_SET);
-        write(NODE, sizeof(Node), 1, &node);
+        storeSeek(NODE, getStoreIndex(i - 1), SEEK_SET);
+        storeWrite(NODE, sizeof(Node), &node);
     }
 
     //更新节点数
     nodeNum--;
-    seek(NODE, 0, SEEK_SET);
-    write(NODE, sizeof(int), 1, &nodeNum);
+    storeSeek(NODE, 0, SEEK_SET);
+    storeWrite(NODE, sizeof(int), &nodeNum);
 
-    close(NODE);
+    storeClose(NODE);
     return SUCCESS;
 }
 
 //更新数据
 int updateDataBuf(int dataId, PType pContent, int conSize)
 {
-    int retMsg = SUCCESS;
+    int retMsg = FAIL;
     int nodeIndex = dataId - 1;
 
     //打开节点文件
-    if (!open(NODE, READ_WRITE_MODE))
+    if (!storeOpen(NODE, READ_WRITE_MODE))
     {
-        retMsg = FAIL;
         goto updateEnd;
     }
 
     if (!checkIndex(nodeIndex)) //检查索引
     {
-        retMsg = FAIL;
         goto updateEnd;
     }
 
     //读取节点数据
     Node node = { 0 };
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    read(NODE, sizeof(Node), 1, &node);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeRead(NODE, sizeof(Node), &node);
 
     if (conSize > node.size) //长度太长
     {
-        retMsg = FAIL;
         goto updateEnd;
     }
 
     //更新节点数据
     node.size = conSize;
     updateNodeByData(&node, pContent);
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    write(NODE, sizeof(Node), 1, &node);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeWrite(NODE, sizeof(Node), &node);
 
     //打开数据文件
-    if (!open(BUF, READ_WRITE_MODE))
+    if (!storeOpen(BUF, READ_WRITE_MODE))
     {
-        retMsg = FAIL;
         goto updateEnd;
     }
 
     //更新源数据
     writeBufByNode(&node,pContent);
 
+    retMsg = SUCCESS;
+
 updateEnd:
-    close(NODE);
-    close(BUF);
+    storeClose(BUF);
+    storeClose(NODE);
 
     return retMsg;
 }
@@ -297,57 +359,248 @@ updateEnd:
 //根据Id查找内容
 int findDataById(int dataId, PType pData)
 {
-    int retMsg = SUCCESS;
+    int retMsg = FAIL;
     int nodeIndex = dataId - 1;
     
     //打开节点文件
-    if (!open(NODE, READ_MODE))
+    if (!storeOpen(NODE, READ_MODE))
     {
-        retMsg = FAIL;
         goto findIdEnd;
     }
 
     if (!checkIndex(nodeIndex)) //检查索引
     {
-        retMsg = FAIL;
         goto findIdEnd;
     }
 
     //读取节点数据
     Node node = { 0 };
-    seek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
-    read(NODE, sizeof(Node), 1, &node);
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeRead(NODE, sizeof(Node), &node);
 
     //打开数据文件
-    if (!open(BUF, READ_MODE))
+    if (!storeOpen(BUF, READ_MODE))
     {
-        retMsg = FAIL;
         goto findIdEnd;
     }
 
     //读数据
     readBufByNode(&node,pData);
 
+    retMsg = SUCCESS;
+
 findIdEnd:
-    close(NODE);
-    close(BUF);
+    storeClose(BUF);
+    storeClose(NODE);
 
     return retMsg;
+}
+
+//匹配数据
+int checkDataByContent(int dataId, char *content, PType pData, int type)
+{
+    int retMsg = FAIL;
+    int nodeIndex = dataId - 1;
+
+    //打开节点文件
+    if (!storeOpen(NODE, READ_MODE))
+    {
+        goto checkNameEnd;
+    }
+
+    if (!checkIndex(nodeIndex)) //检查索引
+    {
+        goto checkNameEnd;
+    }
+
+    //读取节点数据
+    Node node = { 0 };
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeRead(NODE, sizeof(Node), &node);
+
+    //打开数据文件
+    if (!storeOpen(BUF, READ_MODE))
+    {
+        goto checkNameEnd;
+    }
+
+    //读数据
+    readBufByNode(&node, pData);
+    
+    switch (type)
+    {
+        case FIND_NAME :
+        {
+            if (dataCompare(pData->name, content))
+            {
+                retMsg = SUCCESS; //查找成功
+            }
+            break;
+        }
+        case FIND_PHONE:
+        {
+            if (dataCompare(pData->phone, content))
+            {
+                retMsg = SUCCESS; //查找成功
+            }
+            break;
+        }
+        default:
+        {
+            break;
+        } 
+    }
+    
+
+checkNameEnd:
+    storeClose(BUF);
+    storeClose(NODE);
+
+    return retMsg;
+}
+
+int statisticalData(char (*names)[NAME_LENGTH + 1], int *counts)
+{
+    int statisticalNum = 0;
+
+    //打开节点文件
+    if (!storeOpen(NODE, READ_MODE))
+    {
+        goto statisticalEnd;
+    }
+
+    //打开数据文件
+    if (!storeOpen(BUF, READ_MODE))
+    {
+        goto statisticalEnd;
+    }
+
+    int nodeNum = 0;
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
+
+    
+    Node node = { 0 };
+    Type data = { 0 };
+    for (int i = 0; i < nodeNum; ++i)
+    {
+        //读取节点数据
+        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeRead(NODE, sizeof(Node), &node);
+        //读取对应数据
+        readBufByNode(&node, &data);
+        statistical(names,counts,&statisticalNum,data.name); //统计
+    }
+    
+statisticalEnd:
+    storeClose(BUF);
+    storeClose(NODE);
+
+    return statisticalNum;
 }
 
 //获取数据总共个数
 int getDataTotalNum()
 {
     //打开节点文件
-    if (!open(NODE, READ_MODE))
+    if (!storeOpen(NODE, READ_MODE))
     {
         return 0;
     }
 
     int nodeNum = 0;
-    seek(NODE, 0, SEEK_SET);
-    read(NODE, sizeof(int), 1, &nodeNum); //读取节点长度
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
-    close(NODE);
+    storeClose(NODE);
     return nodeNum;
+}
+
+
+//获取索引结构体数据
+int getIndexInfo(int nodeIndex,PIndexInfo pIndexInfo)
+{
+    int retMsg = FAIL;
+
+    //打开节点文件
+    if (!storeOpen(NODE, READ_MODE))
+    {
+        goto getIndexEnd;
+    }
+
+    if (!checkIndex(nodeIndex)) //检查索引
+    {
+        goto getIndexEnd;
+    }
+
+    //读取节点数据
+    Node node = { 0 };
+    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeRead(NODE, sizeof(Node), &node);
+
+    pIndexInfo->index = node.index;
+    pIndexInfo->size = node.size;
+
+    retMsg = SUCCESS;
+
+getIndexEnd:
+    storeClose(NODE);
+    
+    return retMsg;
+}
+
+
+//碎片整理
+int defragment()
+{
+    int retMsg = FAIL;
+
+    //打开节点文件
+    if (!storeOpen(NODE, READ_WRITE_MODE))
+    {
+        goto defragmentEnd;
+    }
+
+    //打开数据文件
+    if (!storeOpen(BUF, READ_WRITE_MODE))
+    {
+        goto defragmentEnd;
+    }
+
+    int nodeNum = 0;
+    storeSeek(NODE, 0, SEEK_SET);
+    storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
+    
+    int lastIndex = 0;
+    Type data = {0};
+    for (int i = 0; i < nodeNum; ++i)
+    {
+        //读取节点数据
+        Node node = { 0 };
+        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeRead(NODE, sizeof(Node), &node);
+        //读取数据源
+        readBufByNode(&node, &data);
+
+        //需要进行碎片整理
+        if (node.index != lastIndex)
+        {
+            node.index = lastIndex;
+            //更新节点
+            storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+            storeWrite(NODE, sizeof(Node), &node);
+            //更新源数据
+            writeBufByNode(&node, &data);
+        }
+
+        lastIndex = node.index + node.size; //上个数据
+    }
+
+    retMsg = SUCCESS;
+
+defragmentEnd:
+    storeClose(BUF);
+    storeClose(NODE);
+
+    return retMsg;
 }

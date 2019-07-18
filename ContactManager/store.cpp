@@ -3,21 +3,21 @@
 // 文件指针
 static FILE *stream[SRC_NUM] = {NULL};
 // 对应文件路径
-static char *filePath[] = {"buf.bin","node.bin"};
+static char *filePath[] = {"MyData.bin","node.bin"};
 
 //初始化
 int storeInit()
 {
     //判断buf文件
-    int ret = storeOpen(BUF, READ_MODE);
+    int ret = storeOpen(DATA, READ_MODE);
     if (ret == FAIL)
     {
-        if (!storeOpen(BUF, WRITE_MODE))
+        if (!storeOpen(DATA, WRITE_MODE))
         {
             return FAIL;
         }
     }
-    storeClose(BUF);
+    storeClose(DATA);
     //判断node文件
     ret = storeOpen(NODE, READ_MODE);
     if (ret == FAIL)
@@ -87,7 +87,7 @@ int storeRead(SRC src, int size, void *buffer)
 {
     if (stream[src] == NULL)
     {
-        return 0; //关闭
+        return 0; 
     }
 
     return fread(buffer, size , 1, stream[src]);
@@ -98,18 +98,18 @@ int storeWrite(SRC src, int size, const void *buffer)
 {
     if (stream[src] == NULL)
     {
-        return 0; //关闭
+        return 0;
     }
 
     return fwrite(buffer, size, 1, stream[src]);
 }
 
 //设置读写位置
-int storeSeek(SRC src, long offset, int origin)
+int storeSeek(SRC src, long offset)
 {
     if (stream[src] == NULL)
     {
-        return FAIL; //关闭
+        return FAIL;
     }
-    return !fseek(stream[src],offset,origin);
+    return !fseek(stream[src],offset, SEEK_SET);
 }

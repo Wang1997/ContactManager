@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include "dataCrud.h"
 
+// 资源图一行展示数量
+#define RESOURCE 30
+
 //该程序初始化
 int manageInit();
 

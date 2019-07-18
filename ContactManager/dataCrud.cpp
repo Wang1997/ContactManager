@@ -27,20 +27,20 @@ static int addNewNode(PNode pInsertNode, int nodeIndex,int nodeNum)
     for (int i = nodeNum; i > nodeIndex; --i)
     {
         //读数据
-        storeSeek(NODE, getStoreIndex(i-1), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i-1));
         storeRead(NODE, sizeof(Node), &node);
         //拷贝数据
-        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i));
         storeWrite(NODE, sizeof(Node), &node);
     }
 
     //插入节点
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeWrite(NODE, sizeof(Node), pInsertNode);
 
     //更新节点数
     nodeNum++;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeWrite(NODE, sizeof(int), &nodeNum);
 
     return SUCCESS;
@@ -50,7 +50,7 @@ static int addNewNode(PNode pInsertNode, int nodeIndex,int nodeNum)
 static int checkIndex(int nodeIndex)
 {
     int nodeNum = 0;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     if (nodeIndex < 0 || nodeIndex >= nodeNum)
@@ -72,23 +72,23 @@ static int updateNodeByData(PNode pNode, PType pData)
 }
 
 // 根据节点写数据
-static int writeBufByNode(PNode pNode, PType pData)
+static int writeDataByNode(PNode pNode, PType pData)
 {
-    storeSeek(BUF, pNode->index, SEEK_SET);
-    storeWrite(BUF, pNode->memberLen[0], pData->name);
-    storeWrite(BUF, pNode->memberLen[1], pData->phone);
-    storeWrite(BUF, pNode->memberLen[2], &pData->shortPhone);
+    storeSeek(DATA, pNode->index);
+    storeWrite(DATA, pNode->memberLen[0], pData->name);
+    storeWrite(DATA, pNode->memberLen[1], pData->phone);
+    storeWrite(DATA, pNode->memberLen[2], &pData->shortPhone);
 
     return SUCCESS;
 }
 
 // 根据节点读数据
-static int readBufByNode(PNode pNode, PType pData)
+static int readDataByNode(PNode pNode, PType pData)
 {
-    storeSeek(BUF, pNode->index, SEEK_SET);
-    storeRead(BUF, pNode->memberLen[0], pData->name);
-    storeRead(BUF, pNode->memberLen[1], pData->phone);
-    storeRead(BUF, pNode->memberLen[2], &pData->shortPhone);
+    storeSeek(DATA, pNode->index);
+    storeRead(DATA, pNode->memberLen[0], pData->name);
+    storeRead(DATA, pNode->memberLen[1], pData->phone);
+    storeRead(DATA, pNode->memberLen[2], &pData->shortPhone);
     
     return SUCCESS;
 }
@@ -185,7 +185,7 @@ int getStorageInfo(int dataSize)
         return INDEX_ERR; //文件打开失败
     }
     
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
     Node node = { 0 };
     int dataIndex = 0;
@@ -234,29 +234,29 @@ int addInputData(int nodeIndex, PType pData)
 
     //读取节点数据
     Node node = { 0 };
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeRead(NODE, sizeof(Node), &node);
 
     //更新数据节点
     updateNodeByData(&node, pData);
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_WRITE_MODE))
+    if (!storeOpen(DATA, READ_WRITE_MODE))
     {
         goto addEnd;
     }
     
     //写入数据
-    writeBufByNode(&node, pData);
+    writeDataByNode(&node, pData);
     
     //写入节点
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeWrite(NODE, sizeof(Node), &node);
     
     retMsg = SUCCESS;
 
 addEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
     
     return retMsg;
@@ -274,7 +274,7 @@ int deleteDataBuf(int dataId)
     }
 
     int nodeNum = 0;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     if (nodeIndex < 0 || nodeIndex >= nodeNum) //检查索引
@@ -288,16 +288,16 @@ int deleteDataBuf(int dataId)
     for (int i = nodeIndex + 1; i < nodeNum; ++i)
     {
         //读数据
-        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i));
         storeRead(NODE, sizeof(Node), &node);
         //拷贝数据
-        storeSeek(NODE, getStoreIndex(i - 1), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i - 1));
         storeWrite(NODE, sizeof(Node), &node);
     }
 
     //更新节点数
     nodeNum--;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeWrite(NODE, sizeof(int), &nodeNum);
 
     storeClose(NODE);
@@ -323,7 +323,7 @@ int updateDataBuf(int dataId, PType pContent, int conSize)
 
     //读取节点数据
     Node node = { 0 };
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeRead(NODE, sizeof(Node), &node);
 
     if (conSize > node.size) //长度太长
@@ -334,22 +334,22 @@ int updateDataBuf(int dataId, PType pContent, int conSize)
     //更新节点数据
     node.size = conSize;
     updateNodeByData(&node, pContent);
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeWrite(NODE, sizeof(Node), &node);
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_WRITE_MODE))
+    if (!storeOpen(DATA, READ_WRITE_MODE))
     {
         goto updateEnd;
     }
 
     //更新源数据
-    writeBufByNode(&node,pContent);
+    writeDataByNode(&node,pContent);
 
     retMsg = SUCCESS;
 
 updateEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
 
     return retMsg;
@@ -375,22 +375,22 @@ int findDataById(int dataId, PType pData)
 
     //读取节点数据
     Node node = { 0 };
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeRead(NODE, sizeof(Node), &node);
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_MODE))
+    if (!storeOpen(DATA, READ_MODE))
     {
         goto findIdEnd;
     }
 
     //读数据
-    readBufByNode(&node,pData);
+    readDataByNode(&node,pData);
 
     retMsg = SUCCESS;
 
 findIdEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
 
     return retMsg;
@@ -415,17 +415,17 @@ int checkDataByContent(int dataId, char *content, PType pData, int type)
 
     //读取节点数据
     Node node = { 0 };
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeRead(NODE, sizeof(Node), &node);
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_MODE))
+    if (!storeOpen(DATA, READ_MODE))
     {
         goto checkNameEnd;
     }
 
     //读数据
-    readBufByNode(&node, pData);
+    readDataByNode(&node, pData);
     
     switch (type)
     {
@@ -453,7 +453,7 @@ int checkDataByContent(int dataId, char *content, PType pData, int type)
     
 
 checkNameEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
 
     return retMsg;
@@ -470,13 +470,13 @@ int statisticalData(char (*names)[NAME_LENGTH + 1], int *counts)
     }
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_MODE))
+    if (!storeOpen(DATA, READ_MODE))
     {
         goto statisticalEnd;
     }
 
     int nodeNum = 0;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     
@@ -485,15 +485,15 @@ int statisticalData(char (*names)[NAME_LENGTH + 1], int *counts)
     for (int i = 0; i < nodeNum; ++i)
     {
         //读取节点数据
-        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i));
         storeRead(NODE, sizeof(Node), &node);
         //读取对应数据
-        readBufByNode(&node, &data);
+        readDataByNode(&node, &data);
         statistical(names,counts,&statisticalNum,data.name); //统计
     }
     
 statisticalEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
 
     return statisticalNum;
@@ -509,7 +509,7 @@ int getDataTotalNum()
     }
 
     int nodeNum = 0;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
 
     storeClose(NODE);
@@ -535,7 +535,7 @@ int getIndexInfo(int nodeIndex,PIndexInfo pIndexInfo)
 
     //读取节点数据
     Node node = { 0 };
-    storeSeek(NODE, getStoreIndex(nodeIndex), SEEK_SET);
+    storeSeek(NODE, getStoreIndex(nodeIndex));
     storeRead(NODE, sizeof(Node), &node);
 
     pIndexInfo->index = node.index;
@@ -562,13 +562,13 @@ int defragment()
     }
 
     //打开数据文件
-    if (!storeOpen(BUF, READ_WRITE_MODE))
+    if (!storeOpen(DATA, READ_WRITE_MODE))
     {
         goto defragmentEnd;
     }
 
     int nodeNum = 0;
-    storeSeek(NODE, 0, SEEK_SET);
+    storeSeek(NODE, 0);
     storeRead(NODE, sizeof(int), &nodeNum); //读取节点长度
     
     int lastIndex = 0;
@@ -577,20 +577,20 @@ int defragment()
     {
         //读取节点数据
         Node node = { 0 };
-        storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+        storeSeek(NODE, getStoreIndex(i));
         storeRead(NODE, sizeof(Node), &node);
         //读取数据源
-        readBufByNode(&node, &data);
+        readDataByNode(&node, &data);
 
         //需要进行碎片整理
         if (node.index != lastIndex)
         {
             node.index = lastIndex;
             //更新节点
-            storeSeek(NODE, getStoreIndex(i), SEEK_SET);
+            storeSeek(NODE, getStoreIndex(i));
             storeWrite(NODE, sizeof(Node), &node);
             //更新源数据
-            writeBufByNode(&node, &data);
+            writeDataByNode(&node, &data);
         }
 
         lastIndex = node.index + node.size; //上个数据
@@ -599,7 +599,7 @@ int defragment()
     retMsg = SUCCESS;
 
 defragmentEnd:
-    storeClose(BUF);
+    storeClose(DATA);
     storeClose(NODE);
 
     return retMsg;

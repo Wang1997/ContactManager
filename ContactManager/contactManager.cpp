@@ -77,8 +77,7 @@ void menuView()
         printf("4.查询功能\r\n");
         printf("5.统计功能\r\n");
         printf("6.存储信息功能\r\n");
-        printf("7.自动填充功能\r\n");
-        printf("8.退出\r\n");
+        printf("7.退出\r\n");
         printf("请选择: ");
         int choose = inputInt();
         switch (choose)
@@ -114,11 +113,6 @@ void menuView()
                 break;
             }
             case 7:
-            {
-                //autoExpansion();
-                break;
-            }
-            case 8:
             {
                 return;
                 break;
@@ -534,13 +528,13 @@ void showStorageResource()
             for (int j = indexInfo.index - 1; j >= lastEndIndex; --j)
             {
                 printf("□"); //空闲
-                if (++totalSize % 10 == 0)
+                if (++totalSize % RESOURCE == 0)
                     printf("\r\n");
             }
             for (int j = 0; j < indexInfo.size; ++j)
             {
                 printf("■"); //占有
-                if (++totalSize % 10 == 0)
+                if (++totalSize % RESOURCE == 0)
                     printf("\r\n");
             }
             lastEndIndex = indexInfo.index + indexInfo.size;

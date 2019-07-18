@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 //数据源
-enum SRC{BUF,NODE};
+enum SRC{DATA,NODE};
 
 #define SRC_NUM 2
 
@@ -31,5 +31,5 @@ int storeRead(SRC src,int size,void *buffer);
 int storeWrite(SRC src, int size, const void *buffer);
 
 //设置读写位置
-int storeSeek(SRC src,long offset,int origin);
+int storeSeek(SRC src,long offset);
 
